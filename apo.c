@@ -4,28 +4,10 @@
 #include <string.h>
 
 #include "strlib.h"
+#include "tasks.h"
 
 #define ERR_NO_TASKS_FILE -1
 #define OK 0
-
-#define TASK_INIT_READ_CAP 16
-
-typedef struct task {
-    char *title;
-} Task;
-
-void task_print(Task task)
-{
-    printf("%s\n", task.title);
-}
-
-void tasks_print(Task **tasks, unsigned long num_tasks)
-{
-    for (int i = 0; i < num_tasks; ++i)
-    {
-        task_print((*tasks)[i]);
-    }
-}
 
 FILE *ensure_tasks_file_exists()
 {
@@ -41,16 +23,13 @@ FILE *ensure_tasks_file_exists()
     return fopen(buffer, "r+");
 }
 
-unsigned long read_tasks_from_file(FILE *file, Task **tasks)
+Tasks read_tasks_from_file(FILE *file)
 {
     char *line = NULL;
     size_t len = 0;
     ssize_t read;
 
-    unsigned long num_tasks = 0;
-    unsigned long cap = TASK_INIT_READ_CAP;
-
-    *tasks = malloc(cap * sizeof(Task));
+    Tasks tasks = Tasks_new();
 
     while ((read = getline(&line, &len, file)) != -1)
     {
@@ -59,18 +38,12 @@ unsigned long read_tasks_from_file(FILE *file, Task **tasks)
         char *trimmed_line = strtrim(line);
         if (trimmed_line == NULL) continue;
 
-        if (num_tasks >= cap)
-        {
-            // Resize the buffer to 2x capacity
-            cap = cap * 2;
-            *tasks = realloc(*tasks, cap * sizeof(Task));
-        }
-
-        (*tasks)[num_tasks++].title = trimmed_line;
+        Tasks_add_task(&tasks, trimmed_line);
     }
 
     free(line);
-    return num_tasks;
+
+    return tasks;
 }
 
 int main(int argc, char *argv[])
@@ -83,13 +56,10 @@ int main(int argc, char *argv[])
         return ERR_NO_TASKS_FILE;
     }
 
-    Task *tasks = NULL;
-    unsigned long num_tasks = read_tasks_from_file(file, &tasks);
+    Tasks tasks = read_tasks_from_file(file);
+    Tasks_print(&tasks);
 
-    tasks_print(&tasks, num_tasks);
-
-    // TOOD: free tasks
-
+    Tasks_free(&tasks);
     fclose(file);
 
     return OK;
